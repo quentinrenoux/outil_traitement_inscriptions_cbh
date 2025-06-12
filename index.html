@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="fr">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=0.8" />
+		<title>Formulaires d'inscription CBH</title>
+		<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-4Q6Gf2aSP4eDXB8Miphtr37CMZZQ5oXLH2yaXMJ2w8e2ZtHTl7GptT4jmndRuHDT" crossorigin="anonymous" />
+		<link
+			rel="stylesheet"
+			href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"
+			integrity="sha512-Evv84Mr4kqVGRNSgIGL/F/aIDqQb7xQ2vcrdIwxfjThSH8CSR7PBEakCr51Ck+w+/U6swU2Im1vVX0SVk9ABhg=="
+			crossorigin="anonymous"
+			referrerpolicy="no-referrer"
+		/>
+		<script
+			src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/js/all.min.js"
+			integrity="sha512-b+nQTCdtTBIRIbraqNEwsjB6UvL3UEMkXnhzd8awtCYh0Kcsjl9uEgwVFVbhoj3uu1DO1ZMacNvLoyJJiNfcvg=="
+			crossorigin="anonymous"
+			referrerpolicy="no-referrer"
+		></script>
+		<style>
+			body {
+				padding: 20px;
+			}
+			.center-flex {
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+			}
+			.table th {
+				white-space: nowrap;
+			}
+			.sort-btn {
+				border: none;
+				background: none;
+				padding: 0 2px;
+				color: #007bff;
+				cursor: pointer;
+			}
+			.invalid-cell {
+				color: #c00 !important;
+				font-weight: bold !important;
+			}
+			body,
+			table,
+			td,
+			th,
+			input,
+			label,
+			button,
+			select,
+			.modal-body,
+			.modal-footer,
+			.form-label,
+			.form-control {
+				font-size: 9pt !important;
+			}
+			h1,
+			h2,
+			h3,
+			h4,
+			h5,
+			h6,
+			.display-5 {
+				font-size: revert !important;
+			}
+			.modal-title {
+				font-size: 1.25rem !important; /* Taille Bootstrap par défaut */
+				font-weight: 500;
+			}
+			#statsList {
+				text-align: left;
+			}
+		</style>
+	</head>
+	<body>
+		<!-- Splash screen -->
+		<div id="splash" style="display: flex; flex-direction: column; align-items: center; justify-content: center; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #f8f9fa; z-index: 2000">
+			<img src="cbh.png" alt="Splash" style="width: 64px; height: 64px; margin-bottom: 16px" />
+			<h2 style="font-size: 1.5rem; margin-bottom: 8px">Outil de vérification des formulaires d'inscription du CBH</h2>
+			<p style="font-size: 1.1rem; color: #666; margin-bottom: 16px; text-align: center">
+				Cet outil permet d'importer, vérifier, visualiser et exporter les données de plusieurs formulaires d'inscription à la fois. Aucune donnée ne quitte l'ordinateur, tout les traitements sont effectués en local.
+				<br />Télechargez le formulaire vierge <a href="BulletinAdhesionCBH_25-26.pdf" alt="Formulaire">ici</a>.
+			</p>
+			<div style="display: flex; align-items: center; gap: 1.5rem; margin-top: 1rem">
+				<div style="display: flex; flex-direction: column; align-items: center">
+					<input class="form-control w-auto mb-2" type="file" id="file-splash" accept="application/pdf" multiple />
+				</div>
+				<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 60px">
+					<div style="width: 2px; height: 18px; background: #bbb"></div>
+					<div style="font-weight: bold; color: #888; font-size: 1.1em; line-height: 1; margin: 4px 0">ou</div>
+					<div style="width: 2px; height: 18px; background: #bbb"></div>
+				</div>
+				<button class="btn btn-info mb-2" id="demoBtn-splash">Données de démonstration</button>
+			</div>
+		</div>
+
+		<div class="mx-2 center-flex">
+			<h1 class="display-5 fw-bold text-center">Outil de vérification des formulaires d'inscription du CBH</h1>
+			<input class="form-control w-auto mb-3" type="file" id="file" accept="application/pdf" multiple />
+			<div class="mb-3">
+				<button class="btn btn-info me-2" id="demoBtn">Données de démonstration</button>
+				<button class="btn btn-secondary me-2" id="resetTable">Réinitialiser le tableau</button>
+				<button class="btn btn-warning me-2" id="removeInvalid">Supprimer les entrées invalides</button>
+				<button class="btn btn-danger me-4" id="removeDuplicates">Supprimer les doublons</button>
+
+				<button class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#statsModal" id="statsBtn">Statistiques</button>
+				<button class="btn btn-success me-2" id="exportExcel">Export Excel</button>
+				<button class="btn btn-secondary me-4" id="reformatBtn">Reformatter</button>
+				<!-- Bouton d'aide -->
+				<button class="btn btn-outline-secondary me-2" data-bs-toggle="modal" data-bs-target="#helpModal">Aide</button>
+			</div>
+		</div>
+		<div class="mx-2 mt-5 table-responsive">
+			<table class="table" id="dataTable">
+				<thead>
+					<tr>
+						<th>Valide <button class="sort-btn" data-col="0">&#8597;</button></th>
+						<th>Sexe <button class="sort-btn" data-col="1">&#8597;</button></th>
+						<th>Nom <button class="sort-btn" data-col="2">&#8597;</button></th>
+						<th>Prénom <button class="sort-btn" data-col="3">&#8597;</button></th>
+						<th>Adresse <button class="sort-btn" data-col="4">&#8597;</button></th>
+						<th>Date de naissance <button class="sort-btn" data-col="5">&#8597;</button></th>
+						<th>Lieu de naissance <button class="sort-btn" data-col="6">&#8597;</button></th>
+						<th>Adresse e&#8209;mail <button class="sort-btn" data-col="7">&#8597;</button></th>
+						<th>Téléphone <button class="sort-btn" data-col="8">&#8597;</button></th>
+						<th>Type d'adhésion <button class="sort-btn" data-col="9">&#8597;</button></th>
+						<th>Compétiteur <button class="sort-btn" data-col="10">&#8597;</button></th>
+						<th>Nombre de volants commandés <button class="sort-btn" data-col="11">&#8597;</button></th>
+						<th>Réglement <button class="sort-btn" data-col="12">&#8597;</button></th>
+						<th>Références du réglement <button class="sort-btn" data-col="13">&#8597;</button></th>
+						<th>Droit à l'image <button class="sort-btn" data-col="14">&#8597;</button></th>
+						<th>Montant cotisation <button class="sort-btn" data-col="15">&#8597;</button></th>
+						<th>Fichier <button class="sort-btn" data-col="16">&#8597;</button></th>
+					</tr>
+				</thead>
+				<tbody id="tbody"></tbody>
+			</table>
+		</div>
+
+		<!-- Modal Aide -->
+		<div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered">
+				<div class="modal-content">
+					<div class="modal-header">
+						<h5 class="modal-title" id="helpModalLabel">Aide - Fonctionnement des boutons</h5>
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+					</div>
+					<div class="modal-body">
+						<ul>
+							<li><b>Aide</b> : Affiche cette fenêtre d'aide.</li>
+							<li><b>Statistiques</b> : Affiche une fenêtre récapitulant les statistiques du tableau (entrées, validité, cotisations, adhésions, etc.).</li>
+							<li><b>Import de fichiers</b> : Permet de sélectionner et importer vos formulaires PDF.</li>
+							<li><b>Démo</b> : Charge des exemples de formulaires PDF pour tester l'application.</li>
+							<li><b>Reformatter</b> : Met en forme les données du tableau (noms en majuscules, prénoms/adresses/villes en capitales, emails en minuscules). Les cellules "N/A" ne sont pas modifiées.</li>
+							<li><b>Supprimer les doublons</b> : Retire du tableau toutes les lignes strictement identiques (hors nom du fichier).</li>
+							<li><b>Supprimer les entrées invalides</b> : Retire du tableau toutes les lignes contenant des données invalides.</li>
+							<li><b>Réinitialiser le tableau</b> : Vide le tableau et réinitialise le champ d'importation de fichiers.</li>
+							<li><b>Export Excel</b> : Exporte le tableau au format Excel (.xlsx).</li>
+							<li><b>Boutons de tri</b> (<span style="font-size: 1.2em">&#8597;</span>) : Permettent de trier les lignes du tableau selon la colonne choisie.</li>
+						</ul>
+						<p>
+							Les champs invalides (adresse, mail, téléphone) sont affichés en rouge et en gras.<br />
+							La colonne "Valide" indique si toutes les informations sont correctes.<br />
+						</p>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Modal Statistiques -->
+		<div class="modal fade" id="statsModal" tabindex="-1" aria-labelledby="statsModalLabel" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered">
+				<div class="modal-content">
+					<div class="modal-header">
+						<h5 class="modal-title" id="statsModalLabel">Statistiques</h5>
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+					</div>
+					<div class="modal-body">
+						<!-- Contenu des statistiques -->
+						<div id="statsContent" class="text-center">
+							<p>Aucune donnée statistique disponible.</p>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/js/bootstrap.bundle.min.js" integrity="sha384-j1CDi7MgGQ12Z7Qab0qlWQ/Qqz24Gc6BM0thvEMVjHnfYGF0rmFCozFSxQBxwHKO" crossorigin="anonymous"></script>
+		<script type="module" src="https://unpkg.com/pdf-lib/dist/pdf-lib.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+		<script>
+			function new_TD(value, parent, className = "") {
+				let td = document.createElement("td");
+				if (className) td.className = className;
+				if (value === null) {
+					td.innerHTML = "<em>N/A</em>";
+					td.classList.add("invalid-cell");
+				} else if (typeof value === "string") {
+					td.innerText = value;
+				} else {
+					td.appendChild(value);
+				}
+				parent.appendChild(td);
+			}
+
+			function calculer_cotisation(donnees) {
+				let cotisation = 0;
+				if (donnees.nouveau) {
+					cotisation = 220; // Exemple pour un nouvel adhérent
+				} else if (donnees.ancien) {
+					cotisation = 200; // Exemple pour un renouvellement
+				} else if (donnees.autre) {
+					cotisation = 160; // Exemple pour un licencié d'un autre club
+				} else {
+					return null; // Non renseigné
+				}
+
+				if (donnees.competition && (donnees.nouveau || donnees.ancien)) {
+					cotisation += 40; // Exemple pour un compétiteur
+
+					cotisation += donnees.boites ? 20 * parseInt(donnees.boites) : 0; // 20 € par boîte de volants
+				}
+
+				console.log(donnees);
+
+				return cotisation + " €";
+			}
+
+			function ajouter_tableau(donnees) {
+				let valide = true;
+
+				// Expressions régulières pour validation
+				const regexTel = /^0[1-9](?:[ .-]?\d{2}){4}$/;
+				const regexMail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+				const regexAdresse = /\d+.*\s+\d{5}\s+\w+/; // Simple : numéro, code postal, ville
+
+				const type_adhesion = donnees.nouveau ? "Nouvel adhérent" : donnees.ancien ? "Renouvellement" : donnees.autre ? "Licencié d'un autre club" : null;
+				const type_reglement = donnees.virement ? "Virement" : donnees.cheque ? "Chèque" : null;
+
+				if (type_adhesion === null || type_reglement === null) {
+					valide = false;
+				}
+
+				// Prépare les valeurs
+				const valeurs = [
+					"", // Valide
+					donnees.M ? "M" : donnees.F ? "F" : null,
+					donnees.nom ? donnees.nom : null,
+					donnees.prenom ? donnees.prenom : null,
+					donnees.adresse ? donnees.adresse : null,
+					donnees.date_naissance ? donnees.date_naissance : null,
+					donnees.ville_naissance ? donnees.ville_naissance : null,
+					donnees.email ? donnees.email : null,
+					donnees.telephone ? donnees.telephone : null,
+					type_adhesion,
+					donnees.competition ? "Oui" : "Non",
+					donnees.boites ? donnees.boites : null,
+					type_reglement,
+					donnees.reference ? donnees.reference : null,
+					donnees.droit_image ? "Oui" : "Non",
+					calculer_cotisation(donnees),
+					donnees.filename ? donnees.filename : null,
+				];
+
+				// Vérifie les champs invalides
+				let invalids = {};
+				// Adresse (col 4)
+				if (valeurs[4] && !regexAdresse.test(valeurs[4])) {
+					invalids[4] = true;
+					valide = false;
+				}
+				// Email (col 7)
+				if (valeurs[7] && !regexMail.test(valeurs[7])) {
+					invalids[7] = true;
+					valide = false;
+				}
+				// Téléphone (col 8)
+				if (valeurs[8] && !regexTel.test(valeurs[8])) {
+					invalids[8] = true;
+					valide = false;
+				}
+
+				if (valeurs.includes("-") || valeurs.includes(null)) {
+					valide = false;
+				}
+
+				valeurs[0] = valide ? "Oui" : "Non";
+				let ligne = document.createElement("tr");
+				if (!valide) ligne.className = "table-danger";
+				valeurs.forEach((v, idx) => {
+					if (idx === 0) {
+						new_TD(v, ligne, "valide-cell");
+					} else if (invalids[idx]) {
+						new_TD(v, ligne, "invalid-cell");
+					} else {
+						new_TD(v, ligne);
+					}
+				});
+				document.getElementById("tbody").append(ligne);
+
+				updateSplash(); // Met à jour l'affichage du splash screen
+			}
+
+			async function lecture_pdf(fichier, callback = ajouter_tableau) {
+				let filereader = new FileReader();
+				filereader.onloadend = async () => {
+					const pdfDoc = await PDFLib.PDFDocument.load(filereader.result);
+					let out = {};
+					// Extraction des champs du formulaire
+					try {
+						pdfDoc
+							.getForm()
+							.getFields()
+							.forEach((pdfField) => {
+								out[pdfField.getName()] = pdfField.constructor.name === "PDFTextField" ? pdfField.getText() : pdfField.isChecked();
+							});
+					} catch (e) {
+						// Ignore si pas de formulaire
+					}
+
+					out.filename = fichier.name;
+
+					callback(out);
+				};
+				filereader.readAsArrayBuffer(fichier);
+			}
+
+			function handleFiles() {
+				const fileList = this.files;
+				Array.from(fileList).forEach((f) => {
+					lecture_pdf(f);
+				});
+			}
+
+			// Synchronise les deux inputs file
+			function handleFilesSync(e) {
+				const files = e.target.files;
+				// Déclenche le traitement sur les deux inputs
+				document.getElementById("file").files = files;
+				document.getElementById("file-splash").files = files;
+				handleFiles.call(e.target);
+			}
+			document.getElementById("file").addEventListener("change", handleFilesSync, false);
+			document.getElementById("file-splash").addEventListener("change", handleFilesSync, false);
+
+			// Synchronise les deux boutons Démo
+			function handleDemoSync() {
+				document.getElementById("demoBtn").disabled = true;
+				document.getElementById("demoBtn-splash").disabled = true;
+				// Appelle la fonction démo existante
+				demoLoad().then(() => {
+					document.getElementById("demoBtn").disabled = false;
+					document.getElementById("demoBtn-splash").disabled = false;
+				});
+			}
+			document.getElementById("demoBtn").addEventListener("click", handleDemoSync);
+			document.getElementById("demoBtn-splash").addEventListener("click", handleDemoSync);
+
+			// Remplace l'ancien code du bouton démo par une fonction réutilisable
+			async function demoLoad() {
+				for (let i = 1; i <= 8; i++) {
+					let url = `sample/exemple${i}.pdf`;
+					try {
+						let response = await fetch(url);
+						if (!response.ok) continue;
+						let blob = await response.blob();
+						let file = new File([blob], `exemple${i}.pdf`, { type: "application/pdf" });
+						lecture_pdf(file);
+					} catch (e) {
+						// Ignore les erreurs si un fichier n'existe pas
+					}
+				}
+			}
+
+			// Réinitialiser le tableau
+			document.getElementById("resetTable").addEventListener("click", function () {
+				document.getElementById("tbody").innerHTML = "";
+				document.getElementById("file").value = ""; // Réinitialise le input file
+				updateSplash();
+			});
+
+			// Supprimer les entrées invalides
+			document.getElementById("removeInvalid").addEventListener("click", function () {
+				const rows = document.querySelectorAll("#tbody tr.table-danger");
+				rows.forEach((row) => row.remove());
+			});
+
+			// Export Excel (XLSX)
+			document.getElementById("exportExcel").addEventListener("click", function () {
+				// Récupère les lignes du tableau
+				let rows = Array.from(document.querySelectorAll("#dataTable tr"));
+				let data = [];
+				rows.forEach((row) => {
+					let cols = Array.from(row.querySelectorAll("th,td"));
+					let vals = cols.map((cell) => {
+						// Supprime les boutons de tri du texte exporté
+						let cellClone = cell.cloneNode(true);
+						cellClone.querySelectorAll(".sort-btn").forEach((btn) => btn.remove());
+						// Pour la colonne "Valide"
+						if (cell.classList.contains("valide-cell")) {
+							return cell.innerText.trim();
+						}
+						return cellClone.innerText.replace(/\n/g, " ").replace(/"/g, '""').trim();
+					});
+					data.push(vals);
+				});
+				// Crée une feuille et un classeur
+				let ws = XLSX.utils.aoa_to_sheet(data);
+				let wb = XLSX.utils.book_new();
+				XLSX.utils.book_append_sheet(wb, ws, "Inscriptions");
+				// Télécharge le fichier
+				XLSX.writeFile(wb, "inscriptions.xlsx");
+			});
+
+			// Tri du tableau
+			let sortDirections = {};
+			document.querySelectorAll(".sort-btn").forEach((btn) => {
+				btn.addEventListener("click", function () {
+					let col = parseInt(this.dataset.col);
+					let tbody = document.getElementById("tbody");
+					let rows = Array.from(tbody.querySelectorAll("tr"));
+					let dir = (sortDirections[col] = !sortDirections[col]);
+					rows.sort((a, b) => {
+						let aCell = a.children[col];
+						let bCell = b.children[col];
+						let aVal, bVal;
+
+						aVal = aCell.innerText.trim();
+						bVal = bCell.innerText.trim();
+						if (!isNaN(aVal) && !isNaN(bVal)) {
+							return dir ? aVal - bVal : bVal - aVal;
+						}
+						return dir ? aVal.localeCompare(bVal, "fr", { numeric: true }) : bVal.localeCompare(aVal, "fr", { numeric: true });
+					});
+					rows.forEach((row) => tbody.appendChild(row));
+				});
+			});
+
+			// Fonction pour mettre en Title Case
+			function toTitleCase(str) {
+				return str.toLowerCase().replace(/(?:^|\s|-)\S/g, (c) => c.toUpperCase());
+			}
+
+			document.getElementById("reformatBtn").addEventListener("click", function () {
+				const tbody = document.getElementById("tbody");
+				Array.from(tbody.rows).forEach((row) => {
+					// Indices : 2 = Nom, 3 = Prénom, 4 = Adresse, 6 = Ville de naissance, 7 = Email
+					let nomCell = row.cells[2];
+					let prenomCell = row.cells[3];
+					let adresseCell = row.cells[4];
+					let villeCell = row.cells[6];
+					let mailCell = row.cells[7];
+
+					if (nomCell && nomCell.innerText && nomCell.innerText !== "N/A") {
+						nomCell.innerText = nomCell.innerText.toLocaleUpperCase("fr-FR");
+					}
+					if (prenomCell && prenomCell.innerText && prenomCell.innerText !== "N/A") {
+						prenomCell.innerText = toTitleCase(prenomCell.innerText);
+					}
+					if (adresseCell && adresseCell.innerText && adresseCell.innerText !== "N/A") {
+						adresseCell.innerText = toTitleCase(adresseCell.innerText);
+					}
+					if (villeCell && villeCell.innerText && villeCell.innerText !== "N/A") {
+						villeCell.innerText = toTitleCase(villeCell.innerText);
+					}
+					if (mailCell && mailCell.innerText && mailCell.innerText !== "N/A") {
+						mailCell.innerText = mailCell.innerText.toLocaleLowerCase("fr-FR");
+					}
+				});
+			});
+
+			function updateSplash() {
+				const tbody = document.getElementById("tbody");
+				const splash = document.getElementById("splash");
+				if (tbody && splash) {
+					if (tbody.children.length === 0) {
+						splash.classList.remove("d-none");
+					} else {
+						splash.classList.add("d-none");
+					}
+				}
+			}
+
+			// ...existing code...
+			document.getElementById("statsModal").addEventListener("show.bs.modal", function () {
+				const rows = Array.from(document.querySelectorAll("#tbody tr"));
+				let total = rows.length;
+				let valides = 0;
+				let invalides = 0;
+				let sommeVolants = 0;
+				let cheque = 0;
+				let virement = 0;
+				let sommeCotisations = 0;
+				let femmes = 0;
+				let hommes = 0;
+				let nouveaux = 0;
+				let renouvellements = 0;
+				let autresClubs = 0;
+				let competiteurs = 0;
+
+				rows.forEach((row) => {
+					let cells = row.cells;
+					if (!cells.length) return;
+					// Valide
+					if (cells[0].innerText.trim() === "Oui") valides++;
+					else invalides++;
+					// Sexe
+					let sexe = cells[1].innerText.trim().toUpperCase();
+					if (sexe === "F") femmes++;
+					if (sexe === "M") hommes++;
+					// Volants
+					let vol = parseInt(cells[11].innerText.trim());
+					if (!isNaN(vol)) sommeVolants += vol;
+					// Règlement
+					let reglement = cells[12].innerText.trim().toLowerCase();
+					if (reglement === "chèque") cheque++;
+					if (reglement === "virement") virement++;
+					// Cotisation
+					let cot = cells[15].innerText.replace(/[^\d,.-]/g, "").replace(",", ".");
+					let cotNum = parseFloat(cot);
+					if (!isNaN(cotNum)) sommeCotisations += cotNum;
+					// Type d'adhésion
+					let adhesion = cells[9].innerText.trim().toLowerCase();
+					if (adhesion === "nouvel adhérent") nouveaux++;
+					if (adhesion === "renouvellement") renouvellements++;
+					if (adhesion === "licencié d'un autre club") autresClubs++;
+					// Compétiteur
+					let comp = cells[10].innerText.trim().toLowerCase();
+					if (comp === "oui") competiteurs++;
+				});
+
+				document.getElementById("statsContent").innerHTML = `
+    <ul id="statsList">
+      <li><b>Nombre d'entrées :</b> ${total}</li>
+      <li><b>Nombre d'entrées valides :</b> ${valides}</li>
+      <li><b>Nombre d'entrées invalides :</b> ${invalides}</li>
+      <li><b>Somme de volants commandés :</b> ${sommeVolants}</li>
+      <li><b>Nombre de règlements par chèque :</b> ${cheque}</li>
+      <li><b>Nombre de règlements par virement :</b> ${virement}</li>
+      <li><b>Somme des cotisations :</b> ${sommeCotisations.toFixed(2)} €</li>
+      <li><b>Nombre de Femmes (F) :</b> ${femmes}</li>
+      <li><b>Nombre d'Hommes (M) :</b> ${hommes}</li>
+      <li><b>Nombre de nouveaux adhérents :</b> ${nouveaux}</li>
+      <li><b>Nombre de renouvellements :</b> ${renouvellements}</li>
+      <li><b>Nombre de licenciés d'un autre club :</b> ${autresClubs}</li>
+      <li><b>Nombre de compétiteurs :</b> ${competiteurs}</li>
+    </ul>
+  `;
+			});
+			// ...existing code...
+			document.getElementById("removeDuplicates").addEventListener("click", function () {
+				const tbody = document.getElementById("tbody");
+				const seen = new Set();
+				Array.from(tbody.rows).forEach((row) => {
+					// Concatène les valeurs des cellules sauf la dernière (Nom du fichier)
+					let key = Array.from(row.cells)
+						.slice(0, row.cells.length - 1)
+						.map((cell) => cell.innerText.trim())
+						.join("|");
+					if (seen.has(key)) {
+						row.remove();
+					} else {
+						seen.add(key);
+					}
+				});
+				updateSplash && updateSplash();
+			});
+		</script>
+	</body>
+</html>
