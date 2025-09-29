@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Badminton Elo Doubles – avec marge par sets</title>
+    <style>
+      :root {
+        --bg: #0b1020;
+        --card: #121a33;
+        --muted: #8492b6;
+        --text: #e8ecf8;
+        --acc: #5ee1a2;
+        --warn: #ffd166;
+        --danger: #ef476f;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        margin: 0;
+        font: 16px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu,
+          "Helvetica Neue", Arial;
+        background: var(--bg);
+        color: var(--text);
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+      h1 {
+        font-size: 24px;
+        margin: 0 0 12px;
+      }
+      h2 {
+        font-size: 18px;
+        margin: 16px 0 8px;
+        color: var(--muted);
+      }
+      .row {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      .card {
+        background: var(--card);
+        border-radius: 16px;
+        padding: 16px;
+        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
+        margin-bottom: 20px;
+      }
+      .grow {
+        flex: 1 1 320px;
+      }
+      label {
+        display: block;
+        margin: 6px 0 4px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      input,
+      select,
+      button,
+      textarea {
+        border-radius: 10px;
+        border: 1px solid #2a355b;
+        background: #0f1630;
+        color: var(--text);
+        padding: 8px 10px;
+      }
+      input[type="number"] {
+        width: 90px;
+      }
+      button {
+        cursor: pointer;
+      }
+      button.primary {
+        background: var(--acc);
+        color: #062216;
+        border: none;
+        font-weight: 600;
+      }
+      .grid {
+        display: grid;
+        gap: 8px;
+      }
+      .grid-2 {
+        grid-template-columns: 1fr 1fr;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        border-bottom: 1px solid #24325e;
+        padding: 8px;
+        text-align: left;
+      }
+      th {
+        color: #a8b3d6;
+        font-weight: 600;
+      }
+      .pill {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: #1a2344;
+        color: #a8b3d6;
+        font-size: 12px;
+      }
+      .team {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .player-tag {
+        background: #1a2344;
+        color: #c9d4f8;
+        border-radius: 8px;
+        padding: 4px 8px;
+        font-size: 13px;
+      }
+      .split {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .hint {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .ok {
+        color: var(--acc);
+      }
+      .warn {
+        color: var(--warn);
+      }
+      .bad {
+        color: var(--danger);
+      }
+      .nowrap {
+        white-space: nowrap;
+      }
+      .kbd {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        background: #0f1630;
+        border: 1px solid #24325e;
+        padding: 2px 6px;
+        border-radius: 6px;
+        font-size: 12px;
+      }
+      .tcenter {
+        text-align: center;
+      }
+      .right {
+        text-align: right;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>
+        Badminton Elo Doubles
+        <span class="pill">marge par sets + bouclier partenaire</span>
+      </h1>
+      <p class="hint">
+        Principe : Elo au niveau de l’équipe (moyenne), ajusté par un facteur de
+        <em>tension/marge</em> basé sur les scores set par set. Le delta
+        d’équipe est ensuite partagé (bouclier partenaire) : le plus fort du duo
+        gagne/perd moins.
+      </p>
+
+      <div class="row">
+        <div class="card grow" id="playersCard">
+          <h2>1) Joueurs</h2>
+          <div class="row" style="align-items: flex-end">
+            <div>
+              <label>Nom du joueur</label>
+              <input id="playerName" placeholder="ex. Alice" />
+            </div>
+            <div>
+              <label>Elo initial</label>
+              <input id="playerElo" type="number" value="1000" />
+            </div>
+            <div>
+              <button class="primary" id="addPlayerBtn">Ajouter</button>
+            </div>
+            <div style="margin-left: auto">
+              <button id="resetAllBtn" title="Remet à zéro joueurs & matchs">
+                Réinitialiser
+              </button>
+            </div>
+          </div>
+          <div id="playersList" style="margin-top: 8px"></div>
+        </div>
+
+        <div class="card grow">
+          <h2>2) Paramètres</h2>
+          <div class="grid grid-2">
+            <div>
+              <label>K (volatilité Elo)</label>
+              <input id="paramK" type="number" value="32" step="1" />
+            </div>
+            <div>
+              <label>d (sensibilité bouclier)</label>
+              <input id="paramD" type="number" value="400" step="10" />
+            </div>
+            <div>
+              <label>λ (lambda bouclier 0…1)</label>
+              <input
+                id="paramLambda"
+                type="number"
+                value="0.8"
+                min="0"
+                max="1"
+                step="0.05"
+              />
+            </div>
+            <div>
+              <label>m₀ (plancher marge)</label>
+              <input
+                id="paramM0"
+                type="number"
+                value="0.4"
+                min="0"
+                max="2"
+                step="0.05"
+              />
+            </div>
+            <div>
+              <label>m₁ (poids tension)</label>
+              <input
+                id="paramM1"
+                type="number"
+                value="0.6"
+                min="0"
+                max="2"
+                step="0.05"
+              />
+            </div>
+            <div>
+              <label>m₂ (bonus 3ᵉ set)</label>
+              <input
+                id="paramM2"
+                type="number"
+                value="0.3"
+                min="0"
+                max="2"
+                step="0.05"
+              />
+            </div>
+          </div>
+          <p class="hint">
+            Astuce : <span class="kbd">m₀</span>↓ = plus sévère sur les 2–0 à
+            gros écarts. <span class="kbd">m₂</span>↑ = plus de points quand ça
+            va au 3ᵉ set.
+          </p>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="card grow">
+          <h2>3) Composer un match</h2>
+          <div class="row">
+            <div class="grow">
+              <label>Équipe 1</label>
+              <div class="team">
+                <select id="t1p1"></select>
+                <select id="t1p2"></select>
+                <button id="randomPairsBtn">Paires aléatoires</button>
+              </div>
+            </div>
+            <div class="grow">
+              <label>Équipe 2</label>
+              <div class="team">
+                <select id="t2p1"></select>
+                <select id="t2p2"></select>
+              </div>
+            </div>
+          </div>
+          <div style="margin-top: 8px" class="hint">
+            Les options n’affichent que les joueurs uniques non déjà
+            sélectionnés.
+          </div>
+        </div>
+
+        <div class="card grow">
+          <h2>4) Scores set par set</h2>
+          <div class="grid grid-2">
+            <div class="split">
+              <span>Set 1</span>
+              <input id="s1a" type="number" min="0" placeholder="Eq1" />
+              <span>–</span>
+              <input id="s1b" type="number" min="0" placeholder="Eq2" />
+            </div>
+            <div class="split">
+              <span>Set 2</span>
+              <input id="s2a" type="number" min="0" placeholder="Eq1" />
+              <span>–</span>
+              <input id="s2b" type="number" min="0" placeholder="Eq2" />
+            </div>
+            <div class="split">
+              <span>Set 3 (optionnel)</span>
+              <input id="s3a" type="number" min="0" placeholder="Eq1" />
+              <span>–</span>
+              <input id="s3b" type="number" min="0" placeholder="Eq2" />
+            </div>
+          </div>
+          <div class="row" style="margin-top: 8px; align-items: center">
+            <button
+              id="generateScoresBtn"
+              title="Remplir automatiquement des scores cohérents"
+            >
+              Générer des scores aléatoires
+            </button>
+            <button class="primary" id="commitMatchBtn">
+              Valider le match
+            </button>
+            <div id="preview" class="hint"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="card grow">
+          <h2>5) Classement live</h2>
+          <table id="rankingTbl">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Joueur</th>
+                <th class="right">Elo</th>
+                <th class="right">Δ total</th>
+                <th class="right">Matchs</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <div class="card grow">
+          <h2>Historique des matchs</h2>
+          <table id="matchesTbl">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Équipes</th>
+                <th>Sets</th>
+                <th class="right nowrap">E(Eq1)</th>
+                <th class="right nowrap">Marge M</th>
+                <th class="right nowrap">Δ team</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <div class="row" style="margin-top: 8px">
+            <button id="exportCSV">Exporter CSV</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // ------------------ State ------------------
+      const state = {
+        players: [], // {id,name,elo,delta,played}
+        matches: [],
+        nextId: 1,
+      };
+
+      // Seed 10 joueurs A..J pour démarrer
+      const seedNames = "ABCDEFGHIJ".split("");
+      seedNames.forEach((n) => addPlayer(`${n}`, 1000, false));
+      renderPlayers();
+      refreshSelectors();
+      renderRanking();
+
+      // ------------------ Helpers math ------------------
+      function expectedScore(ra, rb) {
+        return 1 / (1 + Math.pow(10, (rb - ra) / 400));
+      }
+      function clamp01(x) {
+        return Math.max(0, Math.min(1, x));
+      }
+
+      function setTension(delta) {
+        // delta=|pa-pb|
+        // t = max(0, 1 - (Δ-2)/19)
+        return clamp01(1 - (delta - 2) / 19);
+      }
+
+      function computeM(sets) {
+        // sets: array of {a,b} numbers actually played (ignore empty rows)
+        const played = sets.filter(
+          (s) => Number.isFinite(s.a) && Number.isFinite(s.b)
+        );
+        const N = played.length;
+        if (N === 0) return 1; // neutral, should not happen
+        const tensions = played.map((s) => setTension(Math.abs(s.a - s.b)));
+        const T = tensions.reduce((x, y) => x + y, 0) / N;
+        const B = N === 3 ? 1 : 0;
+        const m0 = +document.getElementById("paramM0").value;
+        const m1 = +document.getElementById("paramM1").value;
+        const m2 = +document.getElementById("paramM2").value;
+        return m0 + m1 * T + m2 * B;
+      }
+
+      function shieldShare(rp, rq) {
+        const d = +document.getElementById("paramD").value;
+        const lambda = +document.getElementById("paramLambda").value;
+        const w = 1 / (1 + Math.pow(10, -((rp - rq) / d)));
+        const fp = 0.5 - lambda * (w - 0.5);
+        return { fp, fq: 1 - fp, w };
+      }
+
+      function teamAvg(r1, r2) {
+        return (r1 + r2) / 2;
+      }
+
+      function toFixedSmart(x, n = 2) {
+        return (Math.round(x * 100) / 100).toFixed(n);
+      }
+
+      // --- NEW: random helpers & score generator ---
+      function randInt(min, max) {
+        // inclusive
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+      }
+      function choose(p) {
+        return Math.random() < p;
+      }
+
+      // Sample a realistic badminton set score for the winning team
+      // Inputs: tightness in [0,1] (1 = très serré),
+      //         winnerTeam = 1 or 2 (juste pour orienter qui reçoit les 21+)
+      function sampleSetScore(tightness) {
+        // Diversification via mélange de cas : très serré, standard, blowout
+        const r = Math.random();
+        const pClose = clamp01(0.25 * tightness + 0.05); // plus de chances quand tight
+        const pBlowout = clamp01(0.18 * (1 - tightness) + 0.02); // plus de chances quand déséquilibré
+
+        let margin;
+        if (r < pClose) {
+          // Très serré : écart 2 la plupart du temps, prolongations fréquentes
+          margin = 2;
+        } else if (r < pClose + pBlowout) {
+          // Blowout : marge élevée 10..13
+          margin = randInt(10, 13);
+        } else {
+          // Standard : 3..9 avec dispersion
+          margin = randInt(3, 9);
+        }
+
+        // Points gagnants/perdants de base
+        let winPts = 21;
+        let losePts = Math.max(0, winPts - margin);
+
+        // Prolongations si très serré ou si losePts >= 20
+        const deuceLike =
+          margin <= 3 && losePts >= 18 && choose(0.4 + 0.3 * tightness);
+        if (deuceLike) {
+          // Étendre jusqu'à 24–22…28–26 de temps à autre
+          const extra = randInt(0, Math.random() < 0.6 ? 3 : 7); // parfois très long
+          winPts = 21 + extra;
+          losePts = Math.max(20, winPts - 2);
+          // borne supérieure raisonnable pour l'aléa ici (pas de cap 30 strict)
+          if (winPts > 30) {
+            winPts = 30;
+            losePts = 28;
+          }
+        }
+        return { winPts, losePts };
+      }
+
+      // Génère 2 ou 3 sets cohérents avec l’écart de niveau entre équipes
+      function generateRandomScoresForCurrentSelection() {
+        const ids = ["t1p1", "t1p2", "t2p1", "t2p2"].map(
+          (id) => +document.getElementById(id).value
+        );
+        if (ids.some((v) => !v)) {
+          alert("Sélectionne d’abord 4 joueurs.");
+          return;
+        }
+        const [p1a, p1b, p2a, p2b] = ids.map((id) =>
+          state.players.find((p) => p.id === id)
+        );
+        const rT1 = teamAvg(p1a.elo, p1b.elo);
+        const rT2 = teamAvg(p2a.elo, p2b.elo);
+        const E1 = expectedScore(rT1, rT2); // probabilité Eq1
+
+        // tightness = 1 quand équipes proches, 0 quand déséquilibrées
+        const tightnessBase = 1 - 2 * Math.abs(E1 - 0.5); // in [0,1]
+
+        // Probabilité d'un 2-0 : plus élevée si gros écart, avec jitter
+        let pStraight =
+          0.5 + 0.4 * Math.abs(E1 - 0.5) + (Math.random() * 0.12 - 0.06);
+        pStraight = Math.min(0.93, Math.max(0.4, pStraight));
+
+        const straight = choose(pStraight);
+
+        const sets = [];
+        if (straight) {
+          const team1WinsMatch = choose(E1);
+          for (let s = 0; s < 2; s++) {
+            const t = clamp01(tightnessBase + (Math.random() * 0.3 - 0.15));
+            const sc = sampleSetScore(t);
+            sets.push(
+              team1WinsMatch
+                ? { a: sc.winPts, b: sc.losePts }
+                : { a: sc.losePts, b: sc.winPts }
+            );
+          }
+        } else {
+          // Simule un best-of-3 où chaque set est tiré avec proba dépendante de E1
+          let wins1 = 0,
+            wins2 = 0;
+          for (let s = 0; s < 3 && wins1 < 2 && wins2 < 2; s++) {
+            const t = clamp01(tightnessBase + (Math.random() * 0.35 - 0.175));
+            // petit rebiais vers le favori au fur et à mesure
+            const fatigueBias = (s === 2 ? 0.06 : 0.03) * (E1 - 0.5);
+            const pSet1 = clamp01(E1 + fatigueBias);
+            const sc = sampleSetScore(t);
+            const team1WinsSet = choose(pSet1);
+            if (team1WinsSet) {
+              sets.push({ a: sc.winPts, b: sc.losePts });
+              wins1++;
+            } else {
+              sets.push({ a: sc.losePts, b: sc.winPts });
+              wins2++;
+            }
+          }
+          // S'assurer qu'on a bien 3 entrées si nécessaire
+          if (sets.length === 2) {
+            const t = clamp01(tightnessBase + (Math.random() * 0.35 - 0.175));
+            const sc = sampleSetScore(t);
+            const pSet1 = clamp01(E1 + 0.06 * (E1 - 0.5));
+            const team1WinsSet = choose(pSet1);
+            if (team1WinsSet) {
+              sets.push({ a: sc.winPts, b: sc.losePts });
+            } else {
+              sets.push({ a: sc.losePts, b: sc.winPts });
+            }
+          }
+        }
+
+        // Injecte dans les champs
+        const fields = ["s1a", "s1b", "s2a", "s2b", "s3a", "s3b"];
+        fields.forEach((id) => (document.getElementById(id).value = ""));
+        document.getElementById("s1a").value = sets[0].a;
+        document.getElementById("s1b").value = sets[0].b;
+        document.getElementById("s2a").value = sets[1].a;
+        document.getElementById("s2b").value = sets[1].b;
+        if (sets[2]) {
+          document.getElementById("s3a").value = sets[2].a;
+          document.getElementById("s3b").value = sets[2].b;
+        }
+      }
+
+      // ------------------ UI: Players ------------------
+      function addPlayer(name, elo, rerender = true) {
+        const id = state.nextId++;
+        state.players.push({ id, name, elo: +elo, delta: 0, played: 0 });
+        if (rerender) {
+          renderPlayers();
+          refreshSelectors();
+          renderRanking();
+        }
+      }
+
+      document.getElementById("addPlayerBtn").addEventListener("click", () => {
+        const name = document.getElementById("playerName").value.trim();
+        const elo = +document.getElementById("playerElo").value || 1000;
+        if (!name) return;
+        addPlayer(name, elo);
+        document.getElementById("playerName").value = "";
+        document.getElementById("playerElo").value = "1000";
+      });
+
+      function removePlayer(id) {
+        state.players = state.players.filter((p) => p.id !== id);
+        renderPlayers();
+        refreshSelectors();
+        renderRanking();
+      }
+
+      function renderPlayers() {
+        const box = document.getElementById("playersList");
+        if (state.players.length === 0) {
+          box.innerHTML =
+            '<p class="hint">Ajoute des joueurs pour commencer.</p>';
+          return;
+        }
+        box.innerHTML = `<table><thead><tr><th>Nom</th><th class="right">Elo</th><th></th></tr></thead><tbody>${state.players
+          .map(
+            (p) =>
+              `<tr><td>${escapeHtml(
+                p.name
+              )}</td><td class="right">${toFixedSmart(
+                p.elo
+              )}</td><td class="right"><button onclick="removePlayer(${
+                p.id
+              })">Retirer</button></td></tr>`
+          )
+          .join("")}</tbody></table>`;
+      }
+
+      function escapeHtml(s) {
+        return s.replace(
+          /[&<>"']/g,
+          (c) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            }[c])
+        );
+      }
+
+      // ------------------ UI: Selectors ------------------
+      function refreshSelectors() {
+        const ids = ["t1p1", "t1p2", "t2p1", "t2p2"];
+        const selects = ids.map((id) => document.getElementById(id));
+
+        // Mémoriser la sélection courante
+        const prev = selects.map((sel) => (sel ? sel.value : ""));
+
+        // Reconstruire les options avec ELO à jour
+        selects.forEach((sel) => {
+          if (!sel) return;
+          sel.innerHTML =
+            '<option value="">—</option>' +
+            state.players
+              .map(
+                (p) =>
+                  `<option value="${p.id}">${escapeHtml(
+                    p.name
+                  )} (${toFixedSmart(p.elo)})</option>`
+              )
+              .join("");
+        });
+
+        // Restaurer la sélection si possible
+        selects.forEach((sel, i) => {
+          if (!sel) return;
+          if (prev[i]) sel.value = prev[i];
+        });
+
+        // Ré-appliquer la contrainte d'unicité
+        enforceUniqueSelections(selects);
+
+        // Rebrancher l'événement change (au cas où des éléments ont été recréés)
+        // selects.forEach(sel=> sel.addEventListener('change', ()=> enforceUniqueSelections(selects)) );
+        // }">${escapeHtml(p.name)} (${toFixedSmart(p.elo)})</option>`).join(''); });
+        // prevent duplicate selections dynamically
+        selects.forEach((sel) =>
+          sel.addEventListener("change", () => enforceUniqueSelections(selects))
+        );
+      }
+
+      function enforceUniqueSelections(selects) {
+        const chosen = new Set(selects.map((s) => +s.value).filter(Boolean));
+        selects.forEach((sel) => {
+          const current = +sel.value;
+          sel.querySelectorAll("option").forEach((opt) => {
+            if (!opt.value) return;
+            const id = +opt.value;
+            opt.disabled = chosen.has(id) && id !== current;
+          });
+        });
+      }
+
+      document
+        .getElementById("randomPairsBtn")
+        .addEventListener("click", () => {
+          if (state.players.length < 4) {
+            alert("Au moins 4 joueurs.");
+            return;
+          }
+          const copy = [...state.players];
+          shuffle(copy);
+          const a = copy[0]?.id,
+            b = copy[1]?.id,
+            c = copy[2]?.id,
+            d = copy[3]?.id;
+          ["t1p1", "t1p2", "t2p1", "t2p2"].forEach(
+            (id, i) =>
+              (document.getElementById(id).value = [a, b, c, d][i] || "")
+          );
+          enforceUniqueSelections(
+            ["t1p1", "t1p2", "t2p1", "t2p2"].map((id) =>
+              document.getElementById(id)
+            )
+          );
+        });
+
+      function shuffle(arr) {
+        for (let i = arr.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+      }
+
+      // ------------------ Commit Match ------------------
+
+      // NEW: bind random score generation
+      document.addEventListener("DOMContentLoaded", () => {
+        const btn = document.getElementById("generateScoresBtn");
+        if (btn) {
+          btn.addEventListener(
+            "click",
+            generateRandomScoresForCurrentSelection
+          );
+        }
+      });
+
+      document
+        .getElementById("commitMatchBtn")
+        .addEventListener("click", () => {
+          const ids = ["t1p1", "t1p2", "t2p1", "t2p2"].map(
+            (id) => +document.getElementById(id).value
+          );
+          if (ids.some((v) => !v)) {
+            alert("Sélectionne 4 joueurs.");
+            return;
+          }
+          const [p1a, p1b, p2a, p2b] = ids.map((id) =>
+            state.players.find((p) => p.id === id)
+          );
+          if (new Set(ids).size < 4) {
+            alert("Chaque joueur ne peut figurer qu’une fois.");
+            return;
+          }
+
+          // Read sets
+          const s = [1, 2, 3].map((k) => ({
+            a: numOrNull(document.getElementById(`s${k}a`).value),
+            b: numOrNull(document.getElementById(`s${k}b`).value),
+          }));
+          const played = s.filter(
+            (x) => Number.isFinite(x.a) && Number.isFinite(x.b)
+          );
+          if (played.length < 2) {
+            alert("Renseigne au moins 2 sets.");
+            return;
+          }
+
+          // Determine winner by sets won
+          const setsWonEq1 = played.filter((x) => x.a > x.b).length;
+          const setsWonEq2 = played.filter((x) => x.b > x.a).length;
+          if (setsWonEq1 === setsWonEq2) {
+            alert("Égalité en sets : complète les scores.");
+            return;
+          }
+
+          // Compute expected, delta base
+          const K = +document.getElementById("paramK").value;
+          const rT1 = teamAvg(p1a.elo, p1b.elo);
+          const rT2 = teamAvg(p2a.elo, p2b.elo);
+          const E1 = expectedScore(rT1, rT2);
+          const S1 = setsWonEq1 > setsWonEq2 ? 1 : 0; // pas de 0.5 ici (pas de nul)
+          const deltaBase = K * (S1 - E1);
+
+          const M = computeM(played);
+          const deltaTeam = M * deltaBase;
+
+          // Shares for each player
+          const { fp: f1a } = shieldShare(p1a.elo, p1b.elo);
+          const f1b = 1 - f1a;
+          const { fp: f2a } = shieldShare(p2a.elo, p2b.elo);
+          const f2b = 1 - f2a;
+
+          // Apply updates (make a copy first for consistency)
+          const d1a = (S1 ? 1 : -1) * f1a * Math.abs(deltaTeam);
+          const d1b = (S1 ? 1 : -1) * f1b * Math.abs(deltaTeam);
+          const d2a = (S1 ? -1 : 1) * f2a * Math.abs(deltaTeam);
+          const d2b = (S1 ? -1 : 1) * f2b * Math.abs(deltaTeam);
+
+          p1a.elo += d1a;
+          p1b.elo += d1b;
+          p2a.elo += d2a;
+          p2b.elo += d2b;
+          p1a.delta += d1a;
+          p1b.delta += d1b;
+          p2a.delta += d2a;
+          p2b.delta += d2b;
+          p1a.played++;
+          p1b.played++;
+          p2a.played++;
+          p2b.played++;
+
+          state.matches.push({
+            id: state.matches.length + 1,
+            team1: [p1a.name, p1b.name],
+            team2: [p2a.name, p2b.name],
+            sets: played,
+            E1,
+            M,
+            deltaTeam,
+            deltas: {
+              [p1a.name]: d1a,
+              [p1b.name]: d1b,
+              [p2a.name]: d2a,
+              [p2b.name]: d2b,
+            },
+          });
+
+          // Clear set inputs for next match
+          [1, 2, 3].forEach((k) => {
+            document.getElementById(`s${k}a`).value = "";
+            document.getElementById(`s${k}b`).value = "";
+          });
+
+          refreshSelectors();
+          renderRanking();
+          renderMatches();
+          previewStatus();
+        });
+
+      function numOrNull(v) {
+        const n = +v;
+        return Number.isFinite(n) ? n : null;
+      }
+
+      function previewStatus() {
+        const pv = document.getElementById("preview");
+        pv.textContent = `Matchs : ${state.matches.length}`;
+      }
+
+      // ------------------ Tables ------------------
+      function renderRanking() {
+        const tbody = document.querySelector("#rankingTbl tbody");
+        const sorted = [...state.players].sort((a, b) => b.elo - a.elo);
+        tbody.innerHTML = sorted
+          .map(
+            (p, i) =>
+              `<tr><td>${i + 1}</td><td>${escapeHtml(
+                p.name
+              )}</td><td class="right">${toFixedSmart(
+                p.elo
+              )}</td><td class="right">${toFixedSmart(
+                p.delta
+              )}</td><td class="right">${p.played}</td></tr>`
+          )
+          .join("");
+      }
+
+      function renderMatches() {
+        const tbody = document.querySelector("#matchesTbl tbody");
+        tbody.innerHTML = state.matches
+          .map((m) => {
+            const setsTxt = m.sets.map((s) => `${s.a}-${s.b}`).join(", ");
+            const t1 = `${escapeHtml(m.team1[0])} & ${escapeHtml(m.team1[1])}`;
+            const t2 = `${escapeHtml(m.team2[0])} & ${escapeHtml(m.team2[1])}`;
+            return `<tr>
+             <td>${m.id}</td>
+             <td><span class="player-tag">${t1}</span> vs <span class="player-tag">${t2}</span></td>
+             <td>${setsTxt}</td>
+             <td class="right">${toFixedSmart(m.E1)}</td>
+             <td class="right">${toFixedSmart(m.M)}</td>
+             <td class="right">${toFixedSmart(m.deltaTeam)}</td>
+           </tr>`;
+          })
+          .join("");
+      }
+
+      // ------------------ Export CSV ------------------
+      document.getElementById("exportCSV").addEventListener("click", () => {
+        const rows = [];
+        rows.push([
+          "match",
+          "team1",
+          "team2",
+          "sets",
+          "E_eq1",
+          "M",
+          "delta_team",
+        ]);
+        state.matches.forEach((m) => {
+          rows.push([
+            m.id,
+            m.team1.join(" & "),
+            m.team2.join(" & "),
+            m.sets.map((s) => `${s.a}-${s.b}`).join(" | "),
+            toFixedSmart(m.E1),
+            toFixedSmart(m.M),
+            toFixedSmart(m.deltaTeam),
+          ]);
+        });
+        const csv = rows
+          .map((r) =>
+            r.map((x) => `"${String(x).replace(/"/g, '""')}"`).join(",")
+          )
+          .join("\n");
+        downloadText(csv, "matches.csv");
+      });
+
+      function downloadText(text, filename) {
+        const blob = new Blob([text], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        a.style.display = "none";
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          URL.revokeObjectURL(url);
+          a.remove();
+        }, 0);
+      }
+
+      // ------------------ Reset ------------------
+      document.getElementById("resetAllBtn").addEventListener("click", () => {
+        if (!confirm("Tout remettre à zéro (joueurs & matchs) ?")) return;
+        state.players = [];
+        state.matches = [];
+        state.nextId = 1;
+        seedNames.forEach((n) => addPlayer(`${n}`, 1000, false));
+        renderPlayers();
+        refreshSelectors();
+        renderRanking();
+        document.querySelector("#matchesTbl tbody").innerHTML = "";
+        previewStatus();
+      });
+    </script>
+  </body>
+</html>
